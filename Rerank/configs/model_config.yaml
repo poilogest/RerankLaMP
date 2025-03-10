@@ -1,0 +1,8 @@
+encoder:
+  model_name: "paraphrase-multilingual-MiniLM-L12-v2"
+  max_seq_length: 256
+
+generator:
+  model_name: "google/flan-t5-base"
+  max_length: 200
+  num_beams: 4

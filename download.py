@@ -5,8 +5,8 @@ tasks = [1, 2, 3, 4, 5, 6, 7]
 splits = ["train", "dev"]
 
 for task in tasks:
-    os.makedirs(f"LaMP_{task}", exist_ok=True)
-    os.chdir(f"LaMP_{task}")
+    os.makedirs(f"LaMP-{task}", exist_ok=True)
+    os.chdir(f"LaMP-{task}")
 
     for split in splits:
         for file in ["questions", "outputs"]:

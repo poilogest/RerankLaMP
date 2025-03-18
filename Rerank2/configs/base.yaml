@@ -1,0 +1,50 @@
+# task_config.yaml
+task_configurations:
+  LaMP-1:
+    metrics_creator: create_metric_f1_accuracy
+    needs_labels: true
+    dataset_class: SimpleDataset
+    fields: ["title", "abstract"]
+    query_extractor: extract_strings_between_quotes
+
+  LaMP-2:
+    metrics_creator: create_metric_f1_accuracy
+    needs_labels: true
+    dataset_class: SimpleDataset
+    fields: ["description"]
+    query_extractor: extract_after_description
+
+  LaMP-3:
+    metrics_creator: create_metric_mae_rmse
+    needs_labels: true
+    dataset_class: SimpleDataset
+    fields: ["text"]
+    query_extractor: extract_after_review
+
+  LaMP-4:
+    metrics_creator: create_metric_bleu_rouge_meteor
+    needs_labels: false
+    dataset_class: SimpleDataset
+    fields: ["title", "text"]
+    query_extractor: extract_after_article
+
+  LaMP-5:
+    metrics_creator: create_metric_bleu_rouge_meteor
+    needs_labels: false
+    dataset_class: SimpleDataset
+    fields: ["title", "abstract"]
+    query_extractor: extract_after_colon
+
+  LaMP-6:
+    metrics_creator: create_metric_bleu_rouge_meteor
+    needs_labels: false
+    dataset_class: SimpleDataset
+    fields: ["text"]
+    query_extractor: extract_after_colon
+
+  LaMP-7:
+    metrics_creator: create_metric_bleu_rouge_meteor
+    needs_labels: false
+    dataset_class: SimpleDataset
+    fields: ["text"]
+    query_extractor: extract_after_colon

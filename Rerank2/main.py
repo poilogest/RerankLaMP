@@ -9,6 +9,8 @@ from prompts.prompts import create_prompt_generator
 from prompts.prompts import simple_prompt_generator
 import json
 import os
+import yaml
+from retriever import random_select_profiles, bm25_select_profiles
 
 parser = argparse.ArgumentParser()
 
@@ -45,30 +47,35 @@ if __name__ == "__main__":
     with open(target_data_addr) as file:
         target_data = json.load(file)["golds"]
 
-    if task == "LaMP-1":
-        labels = get_all_labels(task)
-        eval_dataset = SimpleDataset(source_data=source_data, target_data=target_data, task=task, create_prompt=prompt_generator)
-        compute_metrics = create_metric_f1_accuracy(tokenizer = tokenizer, all_labels = labels)
-    elif task == "LaMP-2":
-        labels = get_all_labels(task)
-        eval_dataset = SimpleDataset(source_data=source_data, target_data=target_data, task=task, create_prompt=prompt_generator)
-        compute_metrics = create_metric_f1_accuracy(tokenizer = tokenizer, all_labels = labels)
-    elif task == "LaMP-3":
-        labels = get_all_labels(task)
-        eval_dataset = SimpleDataset(source_data=source_data, target_data=target_data, task=task, create_prompt=prompt_generator)
-        compute_metrics = create_metric_mae_rmse(tokenizer = tokenizer, all_labels = labels)
-    elif task == "LaMP-4":
-        eval_dataset = SimpleDataset(source_data=source_data, target_data=target_data, task=task, create_prompt=prompt_generator)
-        compute_metrics = create_metric_bleu_rouge_meteor(tokenizer = tokenizer)
-    elif task == "LaMP-5":
-        eval_dataset = SimpleDataset(source_data=source_data, target_data=target_data, task=task, create_prompt=prompt_generator)
-        compute_metrics = create_metric_bleu_rouge_meteor(tokenizer = tokenizer)
-    elif task == "LaMP-7":
-        eval_dataset = SimpleDataset(source_data=source_data, target_data=target_data, task=task, create_prompt=prompt_generator)
-        compute_metrics = create_metric_bleu_rouge_meteor(tokenizer = tokenizer)
-    elif task == "LaMP-6":
-        eval_dataset = SimpleDataset(source_data=source_data, target_data=target_data, task=task, create_prompt=prompt_generator)
-        compute_metrics = create_metric_bleu_rouge_meteor(tokenizer = tokenizer)
+    
+    
+
+    config_path = "configs/base.yaml"
+    with open(config_path, 'r') as f:
+        config = yaml.safe_load(f)  # 安全加载方式，推荐使用
+
+    task_config = config["task_configurations"].get(task)
+    if not task_config:
+        raise ValueError(f"Unsupported task: {task}. Available tasks: {list(config['task_configurations'].keys())}")
+    
+    source_data = bm25_select_profiles(source_data, task, task_config, k = 1)
+    eval_dataset = SimpleDataset(
+        source_data=source_data,
+        target_data=target_data,
+        task=task,
+        create_prompt=prompt_generator
+    )
+
+
+    # 处理标签数据
+    labels = get_all_labels(task) if task_config["needs_labels"] else None
+
+    # 动态创建评估指标
+    metrics_creator = globals()[task_config["metrics_creator"]]
+    compute_metrics = metrics_creator(
+        tokenizer=tokenizer, 
+        **({"all_labels": labels} if task_config["needs_labels"] else {})
+    )
    
     eval_dataset = convert_to_hf_dataset(eval_dataset, cache_dir = opts.cache_dir).map(create_preprocessor(tokenizer = tokenizer, max_length = opts.max_length), batched=True)
 

@@ -10,7 +10,7 @@ from prompts.prompts import simple_prompt_generator
 import json
 import os
 import yaml
-from retriever import random_select_profiles, bm25_select_profiles
+from retriever import random_select_profiles, bm25_select_profiles, k_means_cluster
 
 parser = argparse.ArgumentParser()
 
@@ -58,6 +58,7 @@ if __name__ == "__main__":
     if not task_config:
         raise ValueError(f"Unsupported task: {task}. Available tasks: {list(config['task_configurations'].keys())}")
     
+    source_data = k_means_cluster(source_data, task, task_config, k = 1)
     source_data = bm25_select_profiles(source_data, task, task_config, k = 1)
     eval_dataset = SimpleDataset(
         source_data=source_data,

@@ -5,7 +5,8 @@ from rank_bm25 import BM25Okapi
 from prompts.utils import extract_strings_between_quotes, extract_after_article, extract_after_review, extract_after_paper, add_string_after_title, extract_after_colon, extract_after_abstract, extract_after_description
 
 from typing import List, Dict
-
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.cluster import KMeans
 
 
 def build_corpus_and_query(task_type: str, inp: str, profile: list, config: dict, use_date = False) -> tuple:
@@ -58,8 +59,15 @@ def random_select_profiles(source_data: List[Dict], k: int = 1,
         random.seed(seed)
     
     for data in processed:
-        profiles = data['profile']
-        data['profile'] = random.choices(profiles, k=k)
+        profiles_clusters = data['profile']
+        selected = []
+        cluster_count = len(profiles_clusters)
+        base_k = max(k // cluster_count, 1)  # 基础分配数
+        remainder = k % cluster_count        # 余数分配
+        for i, profiles in enumerate(profiles_clusters):
+            current_k = base_k + (1 if i < remainder else 0)
+            selected += random.choices(profiles, k=current_k)
+        data['profile'] = selected[:k]
     return processed
 
 def bm25_select_profiles(source_data: List[Dict], task, config, k: int = 1) -> List[Dict]:
@@ -72,23 +80,46 @@ def bm25_select_profiles(source_data: List[Dict], task, config, k: int = 1) -> L
     processed = deepcopy(source_data)
     
     for data in processed:
+        profiles_clusters = data['profile']
+        selected = []
+        cluster_count = len(profiles_clusters)
+        base_k = max(k // cluster_count, 1)  # 基础分配数
+        remainder = k % cluster_count        # 余数分配
+        for i, profiles in enumerate(profiles_clusters):
+
+            corpus, query, ids = build_corpus_and_query(task, data['input'], profiles, config)
+            bm25 = BM25Okapi(corpus)
+            current_k = base_k + (1 if i < remainder else 0)
+            # 计算相关性得分
+            tokenized_query = query.split()
+            scores = bm25.get_scores(tokenized_query)
+            
+            # 获取Top-K结果
+            top_indices = sorted(range(len(scores)),
+                            key=lambda i: scores[i], reverse=True)[:current_k]
+            selected += [profiles[i] for i in top_indices]
+        
+        data['profile'] = selected[:k]
+    
+    return processed
+
+
+def k_means_cluster(source_data, task, config, k = 1):
+    processed = deepcopy(source_data)
+    for data in processed:
         profiles = data['profile']
         corpus, query, ids = build_corpus_and_query(task, data['input'], profiles, config)
-        bm25 = BM25Okapi(corpus)
-        
-        # 计算相关性得分
-        tokenized_query = query.split()
-        scores = bm25.get_scores(tokenized_query)
-        
-        # 获取Top-K结果
-        top_indices = sorted(range(len(scores)),
-                           key=lambda i: scores[i], reverse=True)[:k]
-        selected = [profiles[i] for i in top_indices]
-        
-        # 处理结果不足的情况
-        if len(selected) < k:
-            selected += [profiles[-1]] * (k - len(selected))
-            
-        data['profile'] = selected
-    
+        vectorizer = TfidfVectorizer()
+        try:
+            X = vectorizer.fit_transform(corpus)
+        except ValueError:
+            data['profile'] = profiles
+            continue
+        actual_clusters = min(k, X.shape[0]-1)
+        kmeans = KMeans(n_clusters=actual_clusters, random_state=42)
+        labels = kmeans.fit_predict(X)
+        clusters = [[] for _ in range(actual_clusters)]
+        for i, label in enumerate(labels):
+            clusters[label].append(profiles[i])
+        data['profile'] = clusters
     return processed

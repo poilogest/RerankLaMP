@@ -7,6 +7,7 @@ from prompts.utils import extract_strings_between_quotes, extract_after_article,
 from typing import List, Dict
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.cluster import KMeans
+import numpy as np
 
 
 def build_corpus_and_query(task_type: str, inp: str, profile: list, config: dict, use_date = False) -> tuple:
@@ -119,7 +120,24 @@ def k_means_cluster(source_data, task, config, k = 1):
         kmeans = KMeans(n_clusters=actual_clusters, random_state=42)
         labels = kmeans.fit_predict(X)
         clusters = [[] for _ in range(actual_clusters)]
+        data["labels"] = {}
         for i, label in enumerate(labels):
             clusters[label].append(profiles[i])
+            data["labels"][profiles[i]["id"]] = label
+        data['profile'] = clusters
+    return processed
+
+def deep_cluster(source_data, task, config, model, tokenizer, k = 1):
+    processed = deepcopy(source_data)
+    for data in processed:
+        profiles = data['profile']
+        corpus, query, ids = build_corpus_and_query(task, data['input'], profiles, config)
+        inputs = tokenizer(corpus, padding=True, truncation=True, return_tensors="pt")
+        labels = model.predict(inputs)
+        clusters = [[] for _ in range(k)]
+        data["labels"] = {}
+        for i, label in enumerate(labels):
+            clusters[np.argmax(label)].append(profiles[i])
+            data["labels"][profiles[i]["id"]] = label
         data['profile'] = clusters
     return processed

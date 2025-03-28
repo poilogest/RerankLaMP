@@ -263,7 +263,7 @@ def create_prompt_generator(num_retrieve, ret_type = "bm25", is_ranked = False, 
 
 def simple_prompt_generator(max_length = 512, tokenizer = None):
     def prompt(inp, selected_profs, task):
-        factor = 0.6
+        factor = 1
         while True:
             try:
                 max_len_prompt = max_length - min(len(tokenizer(inp)['input_ids']), int(factor * max_length))

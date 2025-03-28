@@ -11,12 +11,13 @@ import json
 import os
 import yaml
 from retriever import random_select_profiles, bm25_select_profiles, k_means_cluster
+import sys
 
 parser = argparse.ArgumentParser()
 
 parser.add_argument("--task", required = True)
 parser.add_argument("--experiment_name", required = True)
-parser.add_argument("--max_length", type = int, default = 256)
+parser.add_argument("--max_length", type = int, default = 384)
 parser.add_argument("--generation_max_length", type = int, default = 128)
 parser.add_argument("--per_device_batch_size", type = int, default = 16)
 parser.add_argument("--generation_num_beams", type = int, default = 4)
@@ -27,8 +28,9 @@ parser.add_argument("--cache_dir", default = "./cache")
 if __name__ == "__main__":
 
     opts = parser.parse_args()
-    model = AutoModelForSeq2SeqLM.from_pretrained("google/flan-t5-small", cache_dir=opts.cache_dir)
-    tokenizer = AutoTokenizer.from_pretrained("google/flan-t5-small", cache_dir=opts.cache_dir)
+    model_name = "google/flan-t5-xl"
+    model = AutoModelForSeq2SeqLM.from_pretrained(model_name, cache_dir=opts.cache_dir)
+    tokenizer = AutoTokenizer.from_pretrained(model_name, cache_dir=opts.cache_dir)
     collator = DataCollatorForSeq2Seq(tokenizer = tokenizer, model = model, max_length = opts.max_length)
 
     output_dir = "experiments/{}/{}".format(opts.experiment_name, opts.task)
@@ -81,8 +83,6 @@ if __name__ == "__main__":
     eval_dataset = convert_to_hf_dataset(eval_dataset, cache_dir = opts.cache_dir).map(create_preprocessor(tokenizer = tokenizer, max_length = opts.max_length), batched=True)
 
     
-
-
     training_args = Seq2SeqTrainingArguments(
         output_dir = output_dir,
         do_eval = True,

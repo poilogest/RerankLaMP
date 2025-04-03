@@ -2,7 +2,6 @@
 !*.py
 !.gitignore
 !*.md
-!*.txt
 !*.yaml
 !*/
 gpt_api.yaml

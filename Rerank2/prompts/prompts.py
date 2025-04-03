@@ -261,31 +261,38 @@ def create_prompt_generator(num_retrieve, ret_type = "bm25", is_ranked = False, 
     return prompt, contriever
 
 
-def simple_prompt_generator(max_length = 512, tokenizer = None):
+def simple_prompt_generator():
     def prompt(inp, selected_profs, task):
-        factor = 1
-        while True:
-            try:
-                max_len_prompt = max_length - min(len(tokenizer(inp)['input_ids']), int(factor * max_length))
-                if task == "LaMP-1":
-                    return create_classification_citation_prompt(inp, selected_profs, max_len_prompt, tokenizer)
-                elif task == "LaMP-2-old":
-                    return create_classification_news_prompt(inp, selected_profs, max_len_prompt, tokenizer)
-                elif task == "LaMP-2":
-                    return create_classification_movies_prompt(inp, selected_profs, max_len_prompt, tokenizer)
-                elif task == "LaMP-3":
-                    return create_classification_review_prompt(inp, selected_profs, max_len_prompt, tokenizer)
-                elif task == "LaMP-4":
-                    return create_generation_news_prompt(inp, selected_profs, max_len_prompt, tokenizer)
-                elif task == "LaMP-5":
-                    return create_generation_paper_prompt(inp, selected_profs, max_len_prompt, tokenizer)
-                elif task == "LaMP-7":
-                    return create_parphrase_tweet_prompt(inp, selected_profs, max_len_prompt, tokenizer)
-                elif task == "LaMP-6":
-                    return create_generation_avocado_prompt(inp, selected_profs, max_len_prompt, tokenizer)
-            except:
-                factor -= 0.1
-                if factor < 0:
-                    print("not possible: ", inp)
-                    return inp
+        # 公共部分：生成所有条目的子提示
+        prompts = []
+        for p in selected_profs:
+            # 根据任务类型选择模板
+            if p == None:
+                continue
+            if task == "LaMP-1":  # 文献分类
+                prompts.append(f'"{p["title"]}"')
+            elif task in ["LaMP-2-old", "LaMP-2"]:  # 新闻分类旧版/电影分类
+                if task == "LaMP-2-old":
+                    template = f'the category for the article: "{p["text"]}" is "{p["category"]}"'
+                else:
+                    template = f'the tag for the movie: "{p["description"]}" is "{p["tag"]}"'
+                prompts.append(template)
+            elif task == "LaMP-3":  # 评分分类
+                prompts.append(f'{p["score"]} is the score for "{p["text"]}"')
+            elif task in ["LaMP-4", "LaMP-6"]:  # 新闻生成/商品生成
+                prompts.append(f'"{p["title"]}" is the title for "{p["text"]}"')
+            elif task == "LaMP-5":  # 论文生成短版
+                prompts.append(f'"{p["title"]}" is a title for "{p["abstract"]}"')
+            elif task == "LaMP-7":  # 推文改写
+                prompts.append(f'"{p["text"]}"')
+
+        # 公共部分：拼接最终提示
+        final_prompt = ", and ".join(prompts)
+        
+        if task == "LaMP-7":
+            final_prompt += " are written by a person. Following the given patterns"
+        elif task == "LaMP-5":
+            final_prompt += ". Following the given patterns"
+        # 附加输入并返回
+        return f"{final_prompt}. {inp}"
     return prompt
